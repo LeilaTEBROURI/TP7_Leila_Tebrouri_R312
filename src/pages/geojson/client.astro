@@ -156,6 +156,13 @@ const listeAge = [...new Set(populationMain.map((row) => row["Âge"]))];
       ],
     });
 
+    // Le SVG racine possède déjà un ariaLabel descriptif. On retire les
+    // libellés automatiques des groupes <g>, signalés comme interdits par Lighthouse.
+    plot.querySelectorAll("g[aria-label], g[aria-description]").forEach((group) => {
+      group.removeAttribute("aria-label");
+      group.removeAttribute("aria-description");
+    });
+
     plotContainer?.replaceChildren(plot);
     if (status) {
       status.textContent = `Carte actualisée : ${selectedSex.toLowerCase()}, ${selectedAge.toLowerCase()}, année ${selectedYear} · ${totalPopulation.toLocaleString("fr-FR")} personnes affichées.`;
