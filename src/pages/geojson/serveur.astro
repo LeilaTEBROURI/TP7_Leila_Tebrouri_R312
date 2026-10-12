@@ -1,0 +1,72 @@
+---
+import * as Plot from "@observablehq/plot";
+import Layout from "../../layouts/Layout.astro";
+import PlotFigure from "../../components/PlotFigure.astro";
+import departements from "../../assets/departements.geojson.json";
+import populationMain from "../../assets/populationMain.json";
+
+const selectedYear = 2015;
+const selectedSex = "Total";
+const selectedAge = "Total";
+const populationByCode = new Map(
+  populationMain
+    .filter((row) => row.Période === selectedYear && row.Sexe === selectedSex && row["Âge"] === selectedAge)
+    .map((row) => [row.Code, row.Valeur]),
+);
+
+const optionPlot: Plot.PlotOptions = {
+  width: 800,
+  height: 690,
+  margin: 20,
+  projection: { type: "mercator", domain: departements as never },
+  color: {
+    type: "quantile",
+    n: 8,
+    scheme: "Greens",
+    label: "Population en centaines de milliers",
+    legend: true,
+    transform: (value) => Math.round(value / 100000),
+  },
+  title: `Population par département en ${selectedYear}`,
+  subtitle: "Ensemble de la population, toutes classes d’âge confondues",
+  caption: "Source : Insee, estimations de population. Survolez un département pour afficher sa valeur.",
+  ariaLabel: `Carte de la population française par département en ${selectedYear}`,
+  marks: [
+    Plot.geo(departements as never, {
+      fill: (feature: { properties: { code: string } }) => populationByCode.get(feature.properties.code),
+      stroke: "#eef7f3",
+      strokeWidth: 0.7,
+      title: (feature: { properties: { code: string; nom: string } }) => {
+        const value = populationByCode.get(feature.properties.code);
+        return `${feature.properties.nom} : ${value?.toLocaleString("fr-FR") ?? "donnée indisponible"}`;
+      },
+      tip: true,
+    }),
+  ],
+};
+---
+
+<Layout title="Carte GeoJSON côté serveur · TP7">
+  <section class="container page-hero">
+    <p class="eyebrow">02 · Observable Plot côté serveur</p>
+    <h1>La France,<br /><em>rendue par Astro.</em></h1>
+    <p>
+      Cette première carte GeoJSON est entièrement fabriquée sur le serveur.
+      Chaque département est coloré selon sa population totale en 2015.
+    </p>
+  </section>
+
+  <section class="container plot-layout" aria-label="Présentation de la carte côté serveur">
+    <div class="plot-intro">
+      <p class="eyebrow">Rendu statique</p>
+      <h2>Une image prête dès le chargement.</h2>
+      <p>
+        Astro associe le nom et le code de chaque département aux données de
+        population, puis Observable Plot construit la carte accessible.
+      </p>
+    </div>
+    <div class="plot-card">
+      <PlotFigure options={optionPlot} />
+    </div>
+  </section>
+</Layout>

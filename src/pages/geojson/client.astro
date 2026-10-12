@@ -1,0 +1,199 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import populationMain from "../../assets/populationMain.json";
+
+const listePeriode = [...new Set(populationMain.map((row) => row.Période))].sort((a, b) => b - a);
+const listeSexe = [...new Set(populationMain.map((row) => row.Sexe))];
+const listeAge = [...new Set(populationMain.map((row) => row["Âge"]))];
+---
+
+<Layout title="Carte GeoJSON interactive · TP7">
+  <section class="container page-hero">
+    <p class="eyebrow">03 · Observable Plot côté client</p>
+    <h1>Choisir,<br /><em>comparer, comprendre.</em></h1>
+    <p>
+      La même géographie devient interactive. Changez l’année, le sexe et la
+      classe d’âge : le graphique est recalculé dans votre navigateur.
+    </p>
+  </section>
+
+  <section class="container plot-layout" aria-label="Explorateur interactif de la population">
+    <div class="plot-intro">
+      <p class="eyebrow">Rendu dynamique</p>
+      <h2>Trois paramètres, une carte vivante.</h2>
+      <p>
+        Les listes sont automatiquement déduites du fichier de données avec
+        <code>map</code>, <code>Set</code> et l’opérateur de décomposition.
+      </p>
+    </div>
+
+    <div class="plot-card">
+      <form class="controls" aria-label="Paramètres de la carte" onsubmit="return false">
+        <div class="field">
+          <label for="periode">Année</label>
+          <select id="periode">
+            {listePeriode.map((periode, index) => <option selected={index === 0}>{periode}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="sexe">Sexe</label>
+          <select id="sexe">
+            {listeSexe.map((sexe) => <option selected={sexe === "Total"}>{sexe}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="age">Âge</label>
+          <select id="age">
+            {listeAge.map((age) => <option selected={age === "Total"}>{age}</option>)}
+          </select>
+        </div>
+        <button id="reset-filters" class="reset-button" type="button">Réinitialiser</button>
+      </form>
+
+      <p id="plot-status" class="status" aria-live="polite"></p>
+      <div id="interactive-plot"></div>
+      <p id="department-detail" class="department-detail" aria-live="polite">
+        Survolez un département pour lire sa valeur exacte.
+      </p>
+      <details class="data-table-details">
+        <summary>Consulter les données sous forme de tableau</summary>
+        <div class="table-scroll" tabindex="0">
+          <table>
+            <caption id="population-caption">Population par département selon les filtres sélectionnés</caption>
+            <thead>
+              <tr><th scope="col">Département</th><th scope="col">Population</th></tr>
+            </thead>
+            <tbody id="population-table"></tbody>
+          </table>
+        </div>
+      </details>
+      <noscript>JavaScript doit être activé pour modifier cette carte.</noscript>
+    </div>
+  </section>
+
+  <section class="container comparison" aria-labelledby="comparison-title">
+    <p class="eyebrow">Comprendre l’architecture</p>
+    <h2 id="comparison-title">Deux rendus, deux usages.</h2>
+    <div class="comparison-grid">
+      <article>
+        <p class="eyebrow">Côté serveur</p>
+        <h3>Prêt dès le chargement</h3>
+        <p>Astro filtre les données et fabrique le SVG avant d’envoyer la page au navigateur.</p>
+      </article>
+      <article>
+        <p class="eyebrow">Côté client</p>
+        <h3>Mis à jour sans rechargement</h3>
+        <p>JavaScript écoute les trois listes, filtre le tableau et remplace le graphique affiché.</p>
+      </article>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  import * as Plot from "@observablehq/plot";
+  import departements from "../../assets/departements.geojson.json";
+  import populationMain from "../../assets/populationMain.json";
+
+  type DepartmentFeature = {
+    properties: { code: string; nom: string };
+  };
+
+  const elmYear = document.getElementById("periode") as HTMLSelectElement;
+  const elmSex = document.getElementById("sexe") as HTMLSelectElement;
+  const elmAge = document.getElementById("age") as HTMLSelectElement;
+  const resetButton = document.getElementById("reset-filters") as HTMLButtonElement;
+  const plotContainer = document.getElementById("interactive-plot");
+  const status = document.getElementById("plot-status");
+  const departmentDetail = document.getElementById("department-detail");
+  const tableBody = document.getElementById("population-table");
+  const tableCaption = document.getElementById("population-caption");
+
+  function renderMap() {
+    const selectedYear = Number(elmYear.value);
+    const selectedSex = elmSex.value;
+    const selectedAge = elmAge.value;
+
+    const selectedRows = populationMain.filter(
+      (row) =>
+        row.Période === selectedYear &&
+        row.Sexe === selectedSex &&
+        row["Âge"] === selectedAge,
+    );
+    const populationByCode = new Map(selectedRows.map((row) => [row.Code, row.Valeur]));
+    const sortedRows = [...selectedRows].sort((a, b) =>
+      a.Géographie.localeCompare(b.Géographie, "fr"),
+    );
+    const totalPopulation = selectedRows.reduce((total, row) => total + row.Valeur, 0);
+
+    const plot = Plot.plot({
+      width: 800,
+      height: 690,
+      margin: 20,
+      projection: { type: "mercator", domain: departements as never },
+      color: {
+        type: "quantile",
+        n: 8,
+        scheme: "Greens",
+        label: "Population en centaines de milliers",
+        legend: true,
+        transform: (value) => Math.round(value / 100000),
+      },
+      title: `Population par département en ${selectedYear}`,
+      subtitle: `${selectedSex} · ${selectedAge}`,
+      caption: "Source : Insee, estimations de population. Survolez un département pour afficher sa valeur.",
+      ariaLabel: `Carte de la population française par département en ${selectedYear}, filtre ${selectedSex}, ${selectedAge}`,
+      marks: [
+        Plot.geo(departements as never, {
+          fill: (feature: DepartmentFeature) => populationByCode.get(feature.properties.code),
+          stroke: "#eef7f3",
+          strokeWidth: 0.7,
+          title: (feature: DepartmentFeature) => {
+            const value = populationByCode.get(feature.properties.code);
+            return `${feature.properties.nom} : ${value?.toLocaleString("fr-FR") ?? "donnée indisponible"}`;
+          },
+          tip: true,
+        }),
+      ],
+    });
+
+    plotContainer?.replaceChildren(plot);
+    if (status) {
+      status.textContent = `Carte actualisée : ${selectedSex.toLowerCase()}, ${selectedAge.toLowerCase()}, année ${selectedYear} · ${totalPopulation.toLocaleString("fr-FR")} personnes affichées.`;
+    }
+    if (departmentDetail) {
+      departmentDetail.textContent = "Survolez un département pour lire sa valeur exacte.";
+    }
+    if (tableCaption) {
+      tableCaption.textContent = `Population par département — ${selectedSex}, ${selectedAge}, ${selectedYear}`;
+    }
+    tableBody?.replaceChildren();
+    for (const rowData of sortedRows) {
+      const row = document.createElement("tr");
+      const departmentCell = document.createElement("th");
+      departmentCell.scope = "row";
+      departmentCell.textContent = rowData.Géographie;
+      const valueCell = document.createElement("td");
+      valueCell.textContent = rowData.Valeur.toLocaleString("fr-FR");
+      row.append(departmentCell, valueCell);
+      tableBody?.append(row);
+    }
+
+    plot.addEventListener("input", () => {
+      const selectedFeature = plot.value as DepartmentFeature | undefined;
+      const code = selectedFeature?.properties?.code;
+      if (!departmentDetail || !code) return;
+      const value = populationByCode.get(code);
+      departmentDetail.textContent = `${selectedFeature.properties.nom} — ${value?.toLocaleString("fr-FR") ?? "donnée indisponible"} personnes.`;
+    });
+  }
+
+  [elmYear, elmSex, elmAge].forEach((select) => select.addEventListener("change", renderMap));
+  resetButton.addEventListener("click", () => {
+    elmYear.selectedIndex = 0;
+    elmSex.value = "Total";
+    elmAge.value = "Total";
+    renderMap();
+    elmYear.focus();
+  });
+  renderMap();
+</script>

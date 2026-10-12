@@ -1,9 +1,15 @@
 ---
 import * as Plot from "@observablehq/plot";
 import { JSDOM } from "jsdom";
-const { options } = Astro.props;
 
-const plot = Plot.plot({ ...options, document: new JSDOM("").window.document });
+interface Props {
+  options: Plot.PlotOptions;
+  class?: string;
+}
+
+const { options, class: className = "plot-figure" } = Astro.props;
+const document = new JSDOM("").window.document;
+const plot = Plot.plot({ ...options, document });
 ---
 
-<div set:html={plot.outerHTML} />
+<div class={className} set:html={plot.outerHTML} />

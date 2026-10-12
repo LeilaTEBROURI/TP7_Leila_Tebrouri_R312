@@ -1,26 +1,59 @@
 ---
 import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "TP7 · Cartographie de données",
+  description = "Cartes interactives réalisées avec Astro, Leaflet et Observable Plot.",
+} = Astro.props;
+const currentPath = Astro.url.pathname;
+const links = [
+  { href: "/", label: "Accueil" },
+  { href: "/leaflet", label: "Leaflet" },
+  { href: "/geojson/serveur", label: "GeoJSON serveur" },
+  { href: "/geojson/client", label: "GeoJSON interactif" },
+];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
-    <title>Astro Basics</title>
+    <title>{title}</title>
   </head>
   <body>
-    <slot />
+    <a class="skip-link" href="#contenu">Aller au contenu</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Retour à l'accueil">
+        <span aria-hidden="true">07</span>
+        <strong>Cartographies</strong>
+      </a>
+      <nav aria-label="Navigation principale">
+        <ul class="nav-list">
+          {links.map((link) => (
+            <li>
+              <a href={link.href} aria-current={currentPath === link.href ? "page" : undefined}>
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </header>
+    <main id="contenu">
+      <slot />
+    </main>
+    <footer>
+      <p>TP_Dev_Front_integration</p>
+      <p>Leila_Tebrouri_MMI2_B1</p>
+    </footer>
   </body>
 </html>
-
-<style>
-  html,
-  body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-  }
-</style>

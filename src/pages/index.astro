@@ -1,21 +1,56 @@
 ---
-import PlotFigure from "../components/PlotFigure.astro";
 import Layout from "../layouts/Layout.astro";
-import * as Plot from "@observablehq/plot";
-import penguins from "../assets/penguins.json";
+
+const pages = [
+  {
+    number: "01",
+    href: "/leaflet",
+    eyebrow: "Leaflet.js",
+    title: "Les établissements sur une carte interactive",
+    text: "245 établissements géolocalisés, avec zoom et informations au clic.",
+  },
+  {
+    number: "02",
+    href: "/geojson/serveur",
+    eyebrow: "Observable Plot",
+    title: "Une carte calculée côté serveur",
+    text: "La population départementale de 2015 est rendue directement par Astro.",
+  },
+  {
+    number: "03",
+    href: "/geojson/client",
+    eyebrow: "JavaScript côté client",
+    title: "Explorer la population française",
+    text: "Trois sélecteurs mettent à jour la carte sans recharger la page.",
+  },
+];
 ---
 
-<Layout>
-  <h1 class="text-2xl">Test Astro et Plot (Observablehq)</h1>
-  <PlotFigure
-    options={{
-      marks: [
-        Plot.dot(penguins, {
-          x: "culmen_length_mm",
-          y: "culmen_depth_mm",
-          stroke: "species",
-        }),
-      ],
-    }}
-  />
+<Layout title="TP7 · Astro, Leaflet et GeoJSON">
+  <section class="hero container">
+    <p class="eyebrow">TP7 · Développement front & intégration</p>
+    <h1>Lire un territoire<br /><em>par ses données.</em></h1>
+    <p class="hero-copy">
+      Deux bibliothèques, trois expériences et des données publiques pour rendre
+      visibles les établissements et la population française.
+    </p>
+  </section>
+
+  <section class="container cards" aria-labelledby="explorer-title">
+    <div class="section-heading">
+      <p class="eyebrow">Les expériences</p>
+      <h2 id="explorer-title">Explorer les cartes</h2>
+    </div>
+    <div class="card-grid">
+      {pages.map((page) => (
+        <a class="feature-card" href={page.href}>
+          <span class="card-number">{page.number}</span>
+          <p class="eyebrow">{page.eyebrow}</p>
+          <h3>{page.title}</h3>
+          <p>{page.text}</p>
+          <span class="card-link">Découvrir <span aria-hidden="true">↗</span></span>
+        </a>
+      ))}
+    </div>
+  </section>
 </Layout>

@@ -1,0 +1,152 @@
+---
+import "leaflet/dist/leaflet.css";
+import Layout from "../layouts/Layout.astro";
+import establishments from "../assets/listeEtablissements.json";
+
+const regions = [...new Set(establishments.map((establishment) => establishment.region))]
+  .filter(Boolean)
+  .sort((a, b) => a.localeCompare(b, "fr"));
+---
+
+<Layout
+  title="Établissements du supérieur · Leaflet"
+  description="Carte interactive des principaux établissements français d'enseignement supérieur."
+>
+  <section class="page-hero container">
+    <p class="eyebrow">01 · Leaflet.js</p>
+    <h1>Le supérieur,<br /><em>sur la carte.</em></h1>
+    <p>
+      Déplacez la carte, zoomez ou sélectionnez un point pour découvrir un
+      établissement. Les {establishments.length} positions viennent des données
+      ouvertes du ministère de l’Enseignement supérieur.
+    </p>
+  </section>
+
+  <section class="container map-shell" aria-labelledby="map-title">
+    <h2 id="map-title" class="sr-only">Carte des établissements d’enseignement supérieur</h2>
+    <form class="map-controls" aria-label="Filtrer les établissements" onsubmit="return false">
+      <div class="field">
+        <label for="region">Région</label>
+        <select id="region">
+          <option value="">Toutes les régions</option>
+          {regions.map((region) => <option value={region}>{region}</option>)}
+        </select>
+      </div>
+      <button id="reset-map" class="reset-button" type="button">Réinitialiser</button>
+    </form>
+    <div
+      id="map"
+      role="region"
+      aria-label={`Carte interactive de ${establishments.length} établissements d'enseignement supérieur en France`}
+      tabindex="0"
+    ></div>
+    <div class="map-meta">
+      <p id="map-status" aria-live="polite"><strong>{establishments.length}</strong> établissements affichés</p>
+      <p>Fond de carte © OpenStreetMap</p>
+    </div>
+    <details class="data-table-details">
+      <summary>Consulter les établissements sous forme de tableau</summary>
+      <div class="table-scroll" tabindex="0">
+        <table>
+          <caption>Établissements correspondant au filtre sélectionné</caption>
+          <thead>
+            <tr><th scope="col">Établissement</th><th scope="col">Ville</th><th scope="col">Région</th></tr>
+          </thead>
+          <tbody id="establishments-table"></tbody>
+        </table>
+      </div>
+    </details>
+    <noscript>JavaScript doit être activé pour utiliser cette carte interactive.</noscript>
+  </section>
+</Layout>
+
+<script>
+  import L from "leaflet";
+  import establishments from "../assets/listeEtablissements.json";
+
+  const mapElement = document.getElementById("map");
+  if (mapElement) {
+    const regionSelect = document.getElementById("region") as HTMLSelectElement;
+    const resetButton = document.getElementById("reset-map") as HTMLButtonElement;
+    const mapStatus = document.getElementById("map-status");
+    const tableBody = document.getElementById("establishments-table");
+    const map = L.map(mapElement, { scrollWheelZoom: false }).setView([46.6033, 1.8883], 6);
+
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    const markerLayer = L.featureGroup().addTo(map);
+
+    function displayEstablishments() {
+      const selectedRegion = regionSelect.value;
+      const filteredEstablishments = establishments.filter(
+        (establishment) => !selectedRegion || establishment.region === selectedRegion,
+      );
+
+      markerLayer.clearLayers();
+      tableBody?.replaceChildren();
+
+      for (const establishment of filteredEstablishments) {
+        const marker = L.circleMarker([establishment.latitude, establishment.longitude], {
+          radius: 6,
+          weight: 2,
+          color: "#06303a",
+          fillColor: "#1dbb9b",
+          fillOpacity: 0.82,
+        });
+
+        const popup = document.createElement("article");
+        const heading = document.createElement("h2");
+        heading.textContent = establishment.name;
+        popup.append(heading);
+
+        const place = document.createElement("p");
+        place.textContent = [establishment.city, establishment.region].filter(Boolean).join(" · ");
+        popup.append(place);
+
+        if (establishment.type) {
+          const type = document.createElement("p");
+          type.textContent = establishment.type;
+          popup.append(type);
+        }
+
+        if (establishment.website) {
+          const link = document.createElement("a");
+          link.href = establishment.website;
+          link.target = "_blank";
+          link.rel = "noreferrer";
+          link.textContent = "Visiter le site";
+          popup.append(link);
+        }
+
+        marker.bindPopup(popup).bindTooltip(establishment.shortName || establishment.name);
+        marker.addTo(markerLayer);
+
+        const row = document.createElement("tr");
+        for (const value of [establishment.name, establishment.city, establishment.region]) {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        }
+        tableBody?.append(row);
+      }
+
+      if (mapStatus) {
+        mapStatus.innerHTML = `<strong>${filteredEstablishments.length}</strong> établissement(s) affiché(s)`;
+      }
+
+      const bounds = markerLayer.getBounds();
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 8 });
+    }
+
+    regionSelect.addEventListener("change", displayEstablishments);
+    resetButton.addEventListener("click", () => {
+      regionSelect.value = "";
+      displayEstablishments();
+      regionSelect.focus();
+    });
+    displayEstablishments();
+  }
+</script>
